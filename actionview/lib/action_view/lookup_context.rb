@@ -101,6 +101,8 @@ module ActionView
         @view_context_mutex.synchronize { @view_context_class = nil }
       else
         ActiveSupport::Ractors[:action_view_context_class]&.clear
+        # Bound templates were compiled into the old view context.
+        ActiveSupport::Ractors[:action_view_bound_templates]&.clear
       end
     end
 

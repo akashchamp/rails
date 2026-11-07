@@ -1,3 +1,10 @@
+*   Clear Ractor-local bound templates when resetting a worker's view context class.
+
+    Non-strict templates can be compiled again into the new view context instead
+    of retaining the old compiled method container.
+
+    *Lawrence Lin*
+
 *   Treat `alpha`, `headingreset`, `shadowrootclonable`,
     `shadowrootcustomelementregistry`, `shadowrootdelegatesfocus` and
     `shadowrootserializable` as boolean attributes in the tag helpers.

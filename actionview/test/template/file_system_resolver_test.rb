@@ -198,4 +198,40 @@ class FileSystemResolverRactorTest < ActiveSupport::TestCase
       assert_operator worker_view_class, :<, main_view_class if RUBY_VERSION >= "4.0"
     end
   end
+
+  if RUBY_VERSION >= "4.0"
+    test "frozen resolver templates render after resetting a worker's view context class" do
+      Dir.mktmpdir do |dir|
+        Dir.mkdir(File.join(dir, "test"))
+        File.write(File.join(dir, "test", "_card.html.erb"), "<%= post %>")
+        File.write(File.join(dir, "test", "hello.html.erb"), "<%# locals: () %>Hi")
+
+        Mime.eager_load!
+        ActionView::Template::Handlers::ERB.escape_ignore_list.freeze
+        ActiveSupport::Ractors.unshareable_proc_action = :raise
+        ActiveSupport::Notifications.send(:record_subscriptions)
+
+        details = { locale: [:en].freeze, formats: [:html].freeze, variants: [].freeze, handlers: [:erb].freeze }.freeze
+        main_class = ActionView::LookupContext.view_context_class
+        main_view = main_class.new(ActionView::LookupContext.new([], details), {}, nil)
+        resolver = ActionView::FileSystemResolver.new(dir)
+        resolver.eager_load_templates(main_view)
+        resolver.freeze
+
+        rendered = on_ractor(resolver, details) do |resolver, details|
+          ["first", "second"].map do |post|
+            view_class = ActionView::LookupContext.view_context_class
+            view = view_class.new(ActionView::LookupContext.new([], details), {}, nil)
+            card = resolver.find_all("card", "test", true, details, nil, [:post]).first
+            hello = resolver.find_all("hello", "test", false, details, nil, []).first
+            output = [card.render(view, { post: post }), hello.render(view, {})]
+            ActionView::LookupContext.reset_view_context_class
+            output
+          end
+        end
+
+        assert_equal [["first", "Hi"], ["second", "Hi"]], rendered
+      end
+    end
+  end
 end
